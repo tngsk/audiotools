@@ -24,7 +24,7 @@ This tool was developed to address specific personal audio processing tasks and 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/_tngsk/audiotools.git
+git clone https://github.com/tngsk/audiotools.git
 cd audiotools
 ```
 
@@ -40,15 +40,17 @@ cargo build --release
 Convert audio files with various options:
 
 ```bash
-# Convert to WAV (24-bit)
-audiotools convert -i input_dir -I wav,flac,mp3 -O wav -b 24 -r
+# Convert to WAV (24-bit) with custom output directory
+audiotools convert -i input_dir -o output_dir -I wav,flac,mp3 -O wav -b 24 -r
 
-# Convert to FLAC with custom sample rate
-audiotools convert -i input_dir -I wav -O flac -s 48000 -r
+# Convert to FLAC with flattened output structure
+audiotools convert -i input_dir -o output_dir -f -I wav -O flac -s 48000 -r
 
-# Convert to MP3 with filename prefix/postfix
-audiotools convert -i input_dir -I wav,flac -O mp3 --prefix "processed_" --postfix "_320k" -r
+# Convert to MP3 preserving directory structure
+audiotools convert -i input_dir -o output_dir -I wav,flac -O mp3 --prefix "processed_" --postfix "_320k" -r
 ```
+
+The `-o, --output-dir` option specifies the destination directory for converted files. By default, the tool preserves the source directory structure. Use the `-f, --flatten` flag to output all files directly to the specified output directory, ignoring the original directory hierarchy.
 
 ### Audio Information
 
@@ -104,6 +106,8 @@ Input/Output formats:
 
 ### Convert Command
 - `-i, --input`: Input directory or file path
+- `-o, --output-dir`: Output directory path
+- `-f, --flatten`: Flatten output directory structure (ignore source directory hierarchy)
 - `-I, --input-format`: Input formats to process (comma-separated)
 - `-O, --output-format`: Target output format
 - `-b, --bit-depth`: Output bit depth for WAV files

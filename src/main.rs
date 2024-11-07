@@ -28,8 +28,16 @@ enum Commands {
         #[arg(short, long)]
         input: PathBuf,
 
+        /// Output directory path
+        #[arg(short, long)]
+        output_dir: Option<PathBuf>,
+
+        /// Flatten output directory structure (ignore source directory hierarchy)
+        #[arg(short = 'f', long)]
+        flatten: bool,
+
         /// Input formats to process (e.g., wav,flac,mp3)
-        #[arg(short = 'I', long, value_delimiter = ',')]
+        #[arg(short = 'I', long, value_delimiter = ',', default_value = "wav")]
         input_format: Vec<String>,
 
         /// Target output format
@@ -109,6 +117,8 @@ fn main() {
     match cli.command {
         Commands::Convert {
             input,
+            output_dir,
+            flatten,
             input_format,
             output_format,
             bit_depth,
@@ -119,6 +129,8 @@ fn main() {
         } => {
             convert_files(
                 &input,
+                output_dir.as_ref(),
+                flatten,
                 &input_format,
                 &output_format,
                 bit_depth,
@@ -149,6 +161,8 @@ fn main() {
 // Convert audio files between formats using ffmpeg
 fn convert_files(
     input: &PathBuf,
+    output_dir: Option<&PathBuf>,
+    flatten: bool,
     input_format: &[String],
     output_format: &str,
     bit_depth: u8,
@@ -179,7 +193,6 @@ fn convert_files(
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
             let ext_str = ext.to_string_lossy().to_lowercase();
-            // Only process files matching requested input formats
             if input_extensions.contains(&ext_str) {
                 // Generate output filename with optional prefix/postfix
                 let stem = entry.path().file_stem().unwrap().to_string_lossy();
@@ -191,8 +204,29 @@ fn convert_files(
                     out_ext
                 );
 
-                // Create output path
-                let output = entry.path().with_file_name(filename);
+                // Create output path based on options
+                let output = if let Some(out_dir) = output_dir {
+                    if flatten {
+                        // すべてのファイルを出力ディレクトリの直下に配置
+                        out_dir.join(&filename)
+                    } else {
+                        // 入力ディレクトリからの相対パスを維持
+                        let relative_path = entry
+                            .path()
+                            .strip_prefix(input)
+                            .unwrap_or(entry.path())
+                            .parent()
+                            .unwrap_or_else(|| std::path::Path::new(""));
+                        let full_output_dir = out_dir.join(relative_path);
+                        // 出力ディレクトリが存在しない場合は作成
+                        fs::create_dir_all(&full_output_dir)
+                            .expect("Failed to create output directory");
+                        full_output_dir.join(&filename)
+                    }
+                } else {
+                    // 出力ディレクトリが指定されていない場合は元のファイルと同じ場所に出力
+                    entry.path().with_file_name(filename)
+                };
 
                 // Build ffmpeg command with conversion parameters
                 let mut cmd = Command::new("ffmpeg");
