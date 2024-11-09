@@ -1,10 +1,87 @@
 use clap::{Parser, Subcommand};
 use std::fs;
 use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+
+#[derive(Debug)]
+struct WavHeader {
+    chunk_id: [u8; 4],
+    chunk_size: u32,
+    format: [u8; 4],
+    subchunk1_id: [u8; 4],
+    subchunk1_size: u32,
+    audio_format: u16,
+    num_channels: u16,
+    sample_rate: u32,
+    byte_rate: u32,
+    block_align: u16,
+    bits_per_sample: u16,
+}
+
+impl WavHeader {
+    fn read_from_file(file: &mut File) -> Result<Self, std::io::Error> {
+        let mut header = WavHeader {
+            chunk_id: [0; 4],
+            chunk_size: 0,
+            format: [0; 4],
+            subchunk1_id: [0; 4],
+            subchunk1_size: 0,
+            audio_format: 0,
+            num_channels: 0,
+            sample_rate: 0,
+            byte_rate: 0,
+            block_align: 0,
+            bits_per_sample: 0,
+        };
+
+        file.read_exact(&mut header.chunk_id)?;
+        header.chunk_size = file.read_u32::<LittleEndian>()?;
+        file.read_exact(&mut header.format)?;
+        file.read_exact(&mut header.subchunk1_id)?;
+        header.subchunk1_size = file.read_u32::<LittleEndian>()?;
+        header.audio_format = file.read_u16::<LittleEndian>()?;
+        header.num_channels = file.read_u16::<LittleEndian>()?;
+        header.sample_rate = file.read_u32::<LittleEndian>()?;
+        header.byte_rate = file.read_u32::<LittleEndian>()?;
+        header.block_align = file.read_u16::<LittleEndian>()?;
+        header.bits_per_sample = file.read_u16::<LittleEndian>()?;
+
+        Ok(header)
+    }
+
+    fn format_info(&self) -> String {
+        format!(
+            "WAV Header Information:\n\
+             ChunkID: {}\n\
+             ChunkSize: {} bytes\n\
+             Format: {}\n\
+             Subchunk1ID: {}\n\
+             Subchunk1Size: {} bytes\n\
+             Audio Format: {} (1 = PCM)\n\
+             Number of Channels: {}\n\
+             Sample Rate: {} Hz\n\
+             Byte Rate: {} bytes/sec\n\
+             Block Align: {} bytes\n\
+             Bits per Sample: {} bits\n",
+            String::from_utf8_lossy(&self.chunk_id),
+            self.chunk_size,
+            String::from_utf8_lossy(&self.format),
+            String::from_utf8_lossy(&self.subchunk1_id),
+            self.subchunk1_size,
+            self.audio_format,
+            self.num_channels,
+            self.sample_rate,
+            self.byte_rate,
+            self.block_align,
+            self.bits_per_sample
+        )
+    }
+}
 
 // Define supported audio formats that can be processed
 const AUDIO_EXTENSIONS: &[&str] = &[
@@ -289,60 +366,73 @@ fn is_audio_file(ext: &str) -> bool {
     AUDIO_EXTENSIONS.contains(&ext.to_lowercase().as_str())
 }
 
+fn run_ffprobe(path: &Path, args: &[&str]) -> Result<String, std::io::Error> {
+    let output = Command::new("ffprobe")
+        .arg("-v")
+        .arg("quiet")
+        .args(args)
+        .arg(path)
+        .output()?;
+
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
 // Get detailed information about audio files using ffprobe
 fn get_audio_info(input: &PathBuf, output: Option<&PathBuf>, fields: &[String], recursive: bool) {
-    // Prepare output file if specified
     let mut output_file =
         output.map(|path| File::create(path).expect("Failed to create output file"));
 
     println!("Supported formats: {}", AUDIO_EXTENSIONS.join(", "));
 
-    // Process each file in the input directory
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
             let ext_str = ext.to_string_lossy().to_lowercase();
 
             if is_audio_file(&ext_str) {
-                // Get file size information
                 let file_size = fs::metadata(entry.path())
                     .map(|m| format_size(m.len()))
                     .unwrap_or_else(|_| "Unknown size".to_string());
 
-                // Get detailed format information using ffprobe
-                let probe_output = Command::new("ffprobe")
-                    .arg("-v")
-                    .arg("quiet")
-                    .arg("-print_format")
-                    .arg("json")
-                    .arg("-show_format")
-                    .arg("-show_streams")
-                    .arg(entry.path())
-                    .output();
+                // WAVEファイルの場合は詳細なヘッダ情報を読み取る
+                let mut additional_info = String::new();
+                if ext_str == "wav" {
+                    if let Ok(mut file) = File::open(entry.path()) {
+                        match WavHeader::read_from_file(&mut file) {
+                            Ok(header) => {
+                                additional_info = header.format_info();
+                            }
+                            Err(e) => {
+                                additional_info = format!("Error reading WAV header: {}", e);
+                            }
+                        }
+                    }
+                }
 
-                match probe_output {
-                    Ok(output) => {
-                        let _probe_info = String::from_utf8_lossy(&output.stdout);
+                // ffprobeによる情報取得
+                let probe_result = run_ffprobe(
+                    entry.path(),
+                    &["-print_format", "json", "-show_format", "-show_streams"],
+                );
 
-                        // Get additional format-specific information
-                        let format_info = Command::new("ffprobe")
-                            .arg("-v")
-                            .arg("quiet")
-                            .arg("-show_entries")
-                            .arg(format!("format={}", fields.join(",")))
-                            .arg("-show_entries")
-                            .arg("stream=codec_name,sample_rate,channels,bit_rate")
-                            .arg(entry.path())
-                            .output()
-                            .ok()
-                            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-                            .unwrap_or_else(|| "Format information unavailable".to_string());
+                match probe_result {
+                    Ok(_json_output) => {
+                        let format_info = run_ffprobe(
+                            entry.path(),
+                            &[
+                                "-show_entries",
+                                &format!("format={}", fields.join(",")),
+                                "-show_entries",
+                                "stream=codec_name,sample_rate,channels,bit_rate",
+                            ],
+                        )
+                        .unwrap_or_else(|_| "Format information unavailable".to_string());
 
-                        // Format and output information
                         let info = format!(
-                            "File: {}\nFormat: {}\nSize: {}\n{}\n",
+                            "File: {}\nFormat: {}\nSize: {}\n{}\n{}\n",
                             entry.path().display(),
                             ext_str.to_uppercase(),
                             file_size,
+                            additional_info,
                             format_info,
                         );
 
