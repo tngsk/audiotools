@@ -55,6 +55,10 @@ enum Commands {
         /// Process directories recursively
         #[arg(short, long)]
         recursive: bool,
+
+        /// Force overwrite of existing files
+        #[arg(long)]
+        force: bool,
     },
 
     /// Display audio file information
@@ -108,6 +112,7 @@ fn main() {
             prefix,
             postfix,
             recursive,
+            force,
         } => {
             convert::convert_files(
                 &input,
@@ -120,6 +125,7 @@ fn main() {
                 prefix.as_deref(),
                 postfix.as_deref(),
                 recursive,
+                force,
             );
         }
         Commands::Info {

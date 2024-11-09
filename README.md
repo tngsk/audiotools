@@ -48,9 +48,12 @@ audiotools convert -i input_dir -o output_dir -f -I wav -O flac -s 48000 -r
 
 # Convert to MP3 preserving directory structure
 audiotools convert -i input_dir -o output_dir -I wav,flac -O mp3 --prefix "processed_" --postfix "_320k" -r
+
+# Convert and overwrite existing files
+audiotools convert -i input_dir -o output_dir -I wav,flac -O mp3 --force
 ```
 
-The `-o, --output-dir` option specifies the destination directory for converted files. By default, the tool preserves the source directory structure. Use the `-f, --flatten` flag to output all files directly to the specified output directory, ignoring the original directory hierarchy.
+The `-o, --output-dir` option specifies the destination directory for converted files. By default, the tool preserves the source directory structure and skips existing files. Use the `-f, --flatten` flag to output all files directly to the specified output directory, and `--force` to overwrite existing files.
 
 ### Audio Information
 
@@ -115,6 +118,7 @@ Input/Output formats:
 - `--prefix`: Prefix for output filenames
 - `--postfix`: Postfix for output filenames
 - `-r, --recursive`: Process directories recursively
+- `--force`: Force overwrite of existing files (default: skip existing files)
 
 ### Info Command
 - `-i, --input`: Input directory or file path

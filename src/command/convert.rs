@@ -15,6 +15,7 @@ pub fn convert_files(
     prefix: Option<&str>,
     postfix: Option<&str>,
     recursive: bool,
+    force: bool,
 ) {
     // Determine codec and extension based on output format
     let (codec, out_ext) = match output_format.to_lowercase().as_str() {
@@ -73,10 +74,25 @@ pub fn convert_files(
                     entry.path().with_file_name(filename)
                 };
 
+                // 出力ファイルが存在するかチェック
+                if output.exists() && !force {
+                    println!(
+                        "Skipped: {} (output file already exists. Use --force to overwrite)",
+                        output.display()
+                    );
+                    continue;
+                }
+
                 // Build ffmpeg command with conversion parameters
                 let mut cmd = Command::new("ffmpeg");
                 cmd.arg("-i").arg(entry.path());
 
+                // Add overwrite option if force is true
+                if force {
+                    cmd.arg("-y"); // 上書きを許可
+                } else {
+                    cmd.arg("-n"); // 上書きを拒否
+                }
                 // Add sample rate conversion if specified
                 if let Some(rate) = sample_rate {
                     cmd.arg("-ar").arg(rate.to_string());
