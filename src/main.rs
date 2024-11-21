@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use audiotools::command::{convert, info, loudness};
+use audiotools::command::{convert, info, loudness, normalize};
 
 // Define CLI application structure using clap
 #[derive(Parser)]
@@ -98,6 +98,33 @@ enum Commands {
         #[arg(short, long)]
         recursive: bool,
     },
+
+    /// Normalize audio files to target loudness level
+    Normalize {
+        /// Input directory or file path
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Output directory path
+        #[arg(short, long)]
+        output_dir: Option<PathBuf>,
+
+        /// Target peak level in dBFS (e.g., -1.0)
+        #[arg(short, long, default_value_t = -1.0, allow_negative_numbers = true)]
+        level: f32,
+
+        /// Input formats to process (e.g., wav,flac,mp3)
+        #[arg(short = 'I', long, value_delimiter = ',', default_value = "wav")]
+        input_format: Vec<String>,
+
+        /// Process directories recursively
+        #[arg(short, long)]
+        recursive: bool,
+
+        /// Force overwrite of existing files
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 // Main function: Parse CLI arguments and dispatch to appropriate handler
@@ -132,6 +159,7 @@ fn main() {
                 recursive,
                 force,
                 channels,
+                None,
             );
         }
         Commands::Info {
@@ -148,6 +176,23 @@ fn main() {
             recursive,
         } => {
             loudness::measure_loudness(&input, output.as_ref(), recursive);
+        }
+        Commands::Normalize {
+            input,
+            output_dir,
+            level,
+            input_format,
+            recursive,
+            force,
+        } => {
+            normalize::normalize_files(
+                &input,
+                output_dir.as_ref(),
+                level,
+                &input_format,
+                recursive,
+                force,
+            );
         }
     }
 }

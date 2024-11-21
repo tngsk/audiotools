@@ -23,6 +23,7 @@ pub fn convert_files(
     recursive: bool,
     force: bool,
     channels: Option<u8>,
+    normalize_level: Option<f32>,
 ) {
     // Determine codec and extension based on output format
     let (codec, out_ext) = match output_format.to_lowercase().as_str() {
@@ -102,6 +103,12 @@ pub fn convert_files(
                     cmd.arg("-n");
                 }
 
+                // normalize_level が Some の場合、単純なボリューム調整として扱う
+                if let Some(gain) = normalize_level {
+                    cmd.args(&["-af", &format!("volume={}dB", gain)]);
+                }
+
+                // モノラルステレオ変換
                 if let Some(ch) = channels {
                     match ch {
                         1 => {
@@ -128,10 +135,12 @@ pub fn convert_files(
                     }
                 }
 
+                // サンプリングレート
                 if let Some(rate) = sample_rate {
                     cmd.arg("-ar").arg(rate.to_string());
                 }
 
+                // ファイル形式とコーデック
                 match output_format {
                     "mp3" => {
                         cmd.args(&["-b:a", DEFAULT_MP3_BITRATE]);
@@ -141,11 +150,10 @@ pub fn convert_files(
                     }
                     _ => {}
                 }
-
                 cmd.args(&["-acodec", codec]).arg(&output);
 
+                // 変換実行
                 cmd.output().expect("Failed to execute ffmpeg");
-
                 println!(
                     "Converted: {} -> {}",
                     entry.path().display(),
