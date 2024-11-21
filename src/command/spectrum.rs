@@ -191,27 +191,27 @@ fn create_spectrogram(
             if freq >= min_freq && freq <= max_freq {
                 let normalized_power = ((power - min_db) / (max_db - min_db)).max(0.0).min(1.0);
                 if normalized_power > 0.0 {
-                    let color = {
-                        let power = normalized_power.max(0.0).min(1.0);
-                        // 寒色から暖色へのグラデーション
-                        if power < 0.33 {
-                            // 青→シアン
-                            let p = power * 3.0;
-                            let alpha = (32.0 + power * 223.0) as u8;
-                            &RGBColor(0, (p * 255.0) as u8, 255).mix(alpha as f64 / 255.0)
-                        } else if power < 0.66 {
-                            // シアン→黄
-                            let p = (power - 0.33) * 3.0;
-                            let alpha = (32.0 + power * 223.0) as u8;
-                            &RGBColor((p * 255.0) as u8, 255, ((1.0 - p) * 255.0) as u8)
-                                .mix(alpha as f64 / 255.0)
-                        } else {
-                            // 黄→赤
-                            let p = (power - 0.66) * 3.0;
-                            let alpha = (32.0 + power * 223.0) as u8;
-                            &RGBColor(255, ((1.0 - p) * 255.0) as u8, 0).mix(alpha as f64 / 255.0)
-                        }
-                    };
+                    // let color = {
+                    //     let power = normalized_power.max(0.0).min(1.0);
+                    //     // 寒色から暖色へのグラデーション
+                    //     if power < 0.33 {
+                    //         // 青→シアン
+                    //         let p = power * 3.0;
+                    //         let alpha = (32.0 + power * 223.0) as u8;
+                    //         &RGBColor(0, (p * 255.0) as u8, 255).mix(alpha as f64 / 255.0)
+                    //     } else if power < 0.66 {
+                    //         // シアン→黄
+                    //         let p = (power - 0.33) * 3.0;
+                    //         let alpha = (32.0 + power * 223.0) as u8;
+                    //         &RGBColor((p * 255.0) as u8, 255, ((1.0 - p) * 255.0) as u8)
+                    //             .mix(alpha as f64 / 255.0)
+                    //     } else {
+                    //         // 黄→赤
+                    //         let p = (power - 0.66) * 3.0;
+                    //         let alpha = (32.0 + power * 223.0) as u8;
+                    //         &RGBColor(255, ((1.0 - p) * 255.0) as u8, 0).mix(alpha as f64 / 255.0)
+                    //     }
+                    // };
 
                     let color = {
                         let power = normalized_power.max(0.0).min(1.0);
