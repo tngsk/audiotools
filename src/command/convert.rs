@@ -3,7 +3,13 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-// Convert audio files between formats using ffmpeg
+// 定数の定義
+const SUPPORTED_FORMATS: &[&str] = &["wav", "flac", "mp3"];
+const SUPPORTED_BIT_DEPTHS: &[u8] = &[16, 24];
+const DEFAULT_MP3_BITRATE: &str = "320k";
+const DEFAULT_FLAC_COMPRESSION: &str = "8";
+const CHANNEL_CONVERSION_FACTOR: f32 = 0.7071; // -3dB
+
 pub fn convert_files(
     input: &PathBuf,
     output_dir: Option<&PathBuf>,
@@ -16,31 +22,41 @@ pub fn convert_files(
     postfix: Option<&str>,
     recursive: bool,
     force: bool,
+    channels: Option<u8>,
 ) {
     // Determine codec and extension based on output format
     let (codec, out_ext) = match output_format.to_lowercase().as_str() {
-        "wav" => (
-            match bit_depth {
-                16 => "pcm_s16le",
-                24 => "pcm_s24le",
-                _ => panic!("Unsupported bit depth for WAV"),
-            },
-            "wav",
-        ),
+        "wav" => {
+            if !SUPPORTED_BIT_DEPTHS.contains(&bit_depth) {
+                panic!(
+                    "Unsupported bit depth for WAV. Supported depths are: {:?}",
+                    SUPPORTED_BIT_DEPTHS
+                );
+            }
+            (
+                match bit_depth {
+                    16 => "pcm_s16le",
+                    24 => "pcm_s24le",
+                    _ => unreachable!(),
+                },
+                "wav",
+            )
+        }
         "flac" => ("flac", "flac"),
         "mp3" => ("libmp3lame", "mp3"),
-        _ => panic!("Unsupported output format"),
+        format => panic!(
+            "Unsupported output format: {}. Supported formats are: {:?}",
+            format, SUPPORTED_FORMATS
+        ),
     };
 
     // Convert input formats to lowercase for comparison
     let input_extensions: Vec<String> = input_format.iter().map(|f| f.to_lowercase()).collect();
 
-    // Process each file in the input directory
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
             let ext_str = ext.to_string_lossy().to_lowercase();
             if input_extensions.contains(&ext_str) {
-                // Generate output filename with optional prefix/postfix
                 let stem = entry.path().file_stem().unwrap().to_string_lossy();
                 let filename = format!(
                     "{}{}{}.{}",
@@ -50,13 +66,10 @@ pub fn convert_files(
                     out_ext
                 );
 
-                // Create output path based on options
                 let output = if let Some(out_dir) = output_dir {
                     if flatten {
-                        // すべてのファイルを出力ディレクトリの直下に配置
                         out_dir.join(&filename)
                     } else {
-                        // 入力ディレクトリからの相対パスを維持
                         let relative_path = entry
                             .path()
                             .strip_prefix(input)
@@ -64,17 +77,14 @@ pub fn convert_files(
                             .parent()
                             .unwrap_or_else(|| std::path::Path::new(""));
                         let full_output_dir = out_dir.join(relative_path);
-                        // 出力ディレクトリが存在しない場合は作成
                         fs::create_dir_all(&full_output_dir)
                             .expect("Failed to create output directory");
                         full_output_dir.join(&filename)
                     }
                 } else {
-                    // 出力ディレクトリが指定されていない場合は元のファイルと同じ場所に出力
                     entry.path().with_file_name(filename)
                 };
 
-                // 出力ファイルが存在するかチェック
                 if output.exists() && !force {
                     println!(
                         "Skipped: {} (output file already exists. Use --force to overwrite)",
@@ -83,37 +93,58 @@ pub fn convert_files(
                     continue;
                 }
 
-                // Build ffmpeg command with conversion parameters
                 let mut cmd = Command::new("ffmpeg");
                 cmd.arg("-i").arg(entry.path());
 
-                // Add overwrite option if force is true
                 if force {
-                    cmd.arg("-y"); // 上書きを許可
+                    cmd.arg("-y");
                 } else {
-                    cmd.arg("-n"); // 上書きを拒否
+                    cmd.arg("-n");
                 }
-                // Add sample rate conversion if specified
+
+                if let Some(ch) = channels {
+                    match ch {
+                        1 => {
+                            cmd.args(&[
+                                "-af",
+                                &format!(
+                                    "pan=mono|c0={}*c0+{}*c1",
+                                    CHANNEL_CONVERSION_FACTOR, CHANNEL_CONVERSION_FACTOR
+                                ),
+                            ]);
+                        }
+                        2 => {
+                            cmd.args(&[
+                                "-af",
+                                &format!(
+                                    "pan=stereo|c0={}*c0|c1={}*c0",
+                                    CHANNEL_CONVERSION_FACTOR, CHANNEL_CONVERSION_FACTOR
+                                ),
+                            ]);
+                        }
+                        _ => {
+                            panic!("Unsupported number of channels. Use 1 for mono or 2 for stereo")
+                        }
+                    }
+                }
+
                 if let Some(rate) = sample_rate {
                     cmd.arg("-ar").arg(rate.to_string());
                 }
 
-                // Add format-specific encoding options
                 match output_format {
                     "mp3" => {
-                        cmd.args(&["-b:a", "320k"]);
+                        cmd.args(&["-b:a", DEFAULT_MP3_BITRATE]);
                     }
                     "flac" => {
-                        cmd.args(&["-compression_level", "8"]);
+                        cmd.args(&["-compression_level", DEFAULT_FLAC_COMPRESSION]);
                     }
                     _ => {}
                 }
 
-                // Execute conversion
-                cmd.args(&["-acodec", codec])
-                    .arg(&output)
-                    .output()
-                    .expect("Failed to execute ffmpeg");
+                cmd.args(&["-acodec", codec]).arg(&output);
+
+                cmd.output().expect("Failed to execute ffmpeg");
 
                 println!(
                     "Converted: {} -> {}",

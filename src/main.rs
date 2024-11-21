@@ -59,6 +59,10 @@ enum Commands {
         /// Force overwrite of existing files
         #[arg(long)]
         force: bool,
+
+        /// Number of output channels (1=mono, 2=stereo)
+        #[arg(long, value_name = "CHANNELS")]
+        channels: Option<u8>,
     },
 
     /// Display audio file information
@@ -113,6 +117,7 @@ fn main() {
             postfix,
             recursive,
             force,
+            channels,
         } => {
             convert::convert_files(
                 &input,
@@ -126,6 +131,7 @@ fn main() {
                 postfix.as_deref(),
                 recursive,
                 force,
+                channels,
             );
         }
         Commands::Info {

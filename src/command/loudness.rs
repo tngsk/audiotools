@@ -1,5 +1,4 @@
 use crate::utils::{format_size, get_walker, is_audio_file};
-use crate::AUDIO_EXTENSIONS;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -9,8 +8,6 @@ use std::process::Command;
 pub fn measure_loudness(input: &PathBuf, output: Option<&PathBuf>, recursive: bool) {
     let mut output_file =
         output.map(|path| File::create(path).expect("Failed to create output file"));
-
-    println!("Supported formats: {}", AUDIO_EXTENSIONS.join(", "));
 
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
