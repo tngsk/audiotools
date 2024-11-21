@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use audiotools::command::{convert, info, loudness, normalize};
+use audiotools::command::{convert, info, loudness, normalize, spectrum};
 
 // Define CLI application structure using clap
 #[derive(Parser)]
@@ -125,6 +125,32 @@ enum Commands {
         #[arg(long)]
         force: bool,
     },
+    /// Create spectrogram from audio file
+    Spectrum {
+        /// Input audio file
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// FFT window size
+        #[arg(long, default_value = "2048")]
+        window_size: usize,
+
+        /// Window overlap ratio (0.0-1.0)
+        #[arg(long, default_value = "0.75")]
+        overlap: f32,
+
+        /// Minimum frequency to display (Hz)
+        #[arg(long, default_value = "20.0")]
+        min_freq: f32,
+
+        /// Maximum frequency to display (Hz)
+        #[arg(long, default_value = "20000.0")]
+        max_freq: f32,
+
+        /// Process directories recursively
+        #[arg(short, long)]
+        recursive: bool,
+    },
 }
 
 // Main function: Parse CLI arguments and dispatch to appropriate handler
@@ -185,13 +211,30 @@ fn main() {
             recursive,
             force,
         } => {
-            normalize::normalize_files(
+            let _ = normalize::normalize_files(
                 &input,
                 output_dir.as_ref(),
                 level,
                 &input_format,
                 recursive,
                 force,
+            );
+        }
+        Commands::Spectrum {
+            input,
+            window_size,
+            overlap,
+            min_freq,
+            max_freq,
+            recursive,
+        } => {
+            spectrum::create_spectrograms(
+                &input,
+                window_size,
+                overlap,
+                min_freq,
+                max_freq,
+                recursive,
             );
         }
     }
