@@ -7,6 +7,7 @@ AudioTools is a command-line utility for audio file processing, providing functi
 - Audio format conversion with customizable parameters
 - Audio file information extraction
 - EBU R128 loudness measurement
+- Spectrogram generation from WAV files
 - Recursive directory processing
 - Output file generation for analysis results
 - JSON formatting utility for analysis results
@@ -79,6 +80,21 @@ audiotools loudness -i input_dir -r
 audiotools loudness -i input_dir -o loudness.txt -r
 ```
 
+### Spectrogram Generation
+
+Generate spectrograms from WAV files:
+
+```bash
+# Generate basic spectrogram
+audiotools spectrum -i input.wav
+
+# Generate spectrogram with custom parameters
+audiotools spectrum -i input_dir -w 2048 -v 0.75 --min-freq 20 --max-freq 20000 -r
+
+# Process multiple files recursively
+audiotools spectrum -i input_dir -r
+```
+
 ### JSON Formatting
 
 Format the analysis output to JSON:
@@ -131,6 +147,16 @@ Input/Output formats:
 - `-o, --output`: Output file path
 - `-r, --recursive`: Process directories recursively
 
+### Spectrum Command
+- `-i, --input`: Input WAV file or directory path
+- `-w, --window-size`: FFT window size (default: 2048)
+- `-v, --overlap`: Window overlap ratio (default: 0.75)
+- `--min-freq`: Minimum frequency to display in Hz (default: 20)
+- `--max-freq`: Maximum frequency to display in Hz (default: 20000)
+- `-r, --recursive`: Process directories recursively
+- `--annotate`: Frequency annotations in format "freq:label" (comma-separated)
+
+
 ## Dependencies
 
 ```toml
@@ -139,6 +165,9 @@ clap = { version = "4.0", features = ["derive"] }
 walkdir = "2.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+hound = "3.5"
+plotters = "0.3"
+rustfft = "6.1"
 ```
 
 ## Note

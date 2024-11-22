@@ -17,6 +17,7 @@ pub fn create_spectrograms(
     min_freq: f32,
     max_freq: f32,
     recursive: bool,
+    annotations: Option<Vec<(f32, String)>>,
 ) {
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
@@ -32,6 +33,7 @@ pub fn create_spectrograms(
                     overlap,
                     min_freq,
                     max_freq,
+                    annotations.clone(),
                 ) {
                     Ok(_) => println!(
                         "Created spectrogram: {} -> {}",
@@ -52,6 +54,7 @@ fn create_spectrogram(
     overlap: f32,
     min_freq: f32,
     max_freq: f32,
+    annotations: Option<Vec<(f32, String)>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // WAVファイル読み込みとFFT処理部分は同じ
     let mut reader = WavReader::open(input)?;
@@ -229,21 +232,21 @@ fn create_spectrogram(
             }
         }
     }
-    // 軸の設定の後に、周波数アノテーションを追加
-    let annotations = vec![(800.0, "800 Hz")];
 
-    // アノテーションの描画
-    for (freq, label) in annotations.iter() {
-        if *freq >= min_freq && *freq <= max_freq {
-            chart.draw_series(LineSeries::new(
-                vec![(0.0, *freq), (total_time, *freq)],
-                &GREEN,
-            ))?;
-            chart.draw_series(std::iter::once(Text::new(
-                label.to_string(),
-                (total_time - 0.1, *freq - 100.0),
-                (font, 16).into_font().color(&GREEN),
-            )))?;
+    // アノテーションの描画部分を更新
+    if let Some(annotations) = annotations {
+        for (freq, label) in annotations.iter() {
+            if *freq >= min_freq && *freq <= max_freq {
+                chart.draw_series(LineSeries::new(
+                    vec![(0.0, *freq), (total_time, *freq)],
+                    &GREEN,
+                ))?;
+                chart.draw_series(std::iter::once(Text::new(
+                    label.to_string(),
+                    (total_time - 0.1, *freq - 100.0),
+                    (font, 16).into_font().color(&GREEN),
+                )))?;
+            }
         }
     }
 

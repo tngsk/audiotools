@@ -150,7 +150,24 @@ enum Commands {
         /// Process directories recursively
         #[arg(short, long)]
         recursive: bool,
+
+        /// Frequency annotations (format: "freq:label", comma-separated)
+        #[arg(long = "annotate", value_parser = parse_frequency_annotation, value_delimiter = ',')]
+        annotations: Option<Vec<(f32, String)>>,
     },
+}
+
+fn parse_frequency_annotation(s: &str) -> Result<(f32, String), String> {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() != 2 {
+        return Err("Annotation format should be 'frequency:label'".to_string());
+    }
+
+    let freq = parts[0]
+        .parse::<f32>()
+        .map_err(|_| "Invalid frequency value".to_string())?;
+
+    Ok((freq, parts[1].to_string()))
 }
 
 // Main function: Parse CLI arguments and dispatch to appropriate handler
@@ -227,6 +244,7 @@ fn main() {
             min_freq,
             max_freq,
             recursive,
+            annotations,
         } => {
             spectrum::create_spectrograms(
                 &input,
@@ -235,6 +253,7 @@ fn main() {
                 min_freq,
                 max_freq,
                 recursive,
+                annotations,
             );
         }
     }
