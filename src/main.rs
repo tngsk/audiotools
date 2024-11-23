@@ -1,7 +1,13 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use audiotools::command::{convert, info, loudness, normalize, spectrum};
+use audiotools::command::{
+    convert, info, loudness, normalize,
+    spectrum::{self, parse_frequency_annotation},
+};
+
+use audiotools::utils::detection;
+use audiotools::utils::time::{self, TimeSpecification};
 
 // Define CLI application structure using clap
 #[derive(Parser)]
@@ -63,6 +69,10 @@ enum Commands {
         /// Number of output channels (1=mono, 2=stereo)
         #[arg(long, value_name = "CHANNELS")]
         channels: Option<u8>,
+
+        /// Target peak level in dBFS (e.g., -1.0)
+        #[arg(short = 'l', long = "level", allow_negative_numbers = true)]
+        normalize_level: Option<f32>,
     },
 
     /// Display audio file information
@@ -151,23 +161,34 @@ enum Commands {
         #[arg(short, long)]
         recursive: bool,
 
+        // Start time (seconds, MM:SS format, or percentage with %)
+        #[arg(long, value_parser = time::parse_time_specification)]
+        start: Option<TimeSpecification>,
+
+        /// End time (seconds, MM:SS format, or percentage with %)
+        #[arg(long, value_parser = time::parse_time_specification)]
+        end: Option<TimeSpecification>,
+
+        /// Enable automatic start detection
+        #[arg(long)]
+        auto_start: bool,
+
+        /// Amplitude threshold for auto start detection
+        #[arg(long, default_value = "0.01")]
+        threshold: f32,
+
+        /// Window size for auto start detection
+        #[arg(long, default_value = "512")]
+        detection_window: usize,
+
+        /// Minimum duration for auto start detection (seconds)
+        #[arg(long, default_value = "0.01")]
+        min_duration: f32,
+
         /// Frequency annotations (format: "freq:label", comma-separated)
         #[arg(long = "annotate", value_parser = parse_frequency_annotation, value_delimiter = ',')]
         annotations: Option<Vec<(f32, String)>>,
     },
-}
-
-fn parse_frequency_annotation(s: &str) -> Result<(f32, String), String> {
-    let parts: Vec<&str> = s.split(':').collect();
-    if parts.len() != 2 {
-        return Err("Annotation format should be 'frequency:label'".to_string());
-    }
-
-    let freq = parts[0]
-        .parse::<f32>()
-        .map_err(|_| "Invalid frequency value".to_string())?;
-
-    Ok((freq, parts[1].to_string()))
 }
 
 // Main function: Parse CLI arguments and dispatch to appropriate handler
@@ -188,6 +209,7 @@ fn main() {
             recursive,
             force,
             channels,
+            normalize_level,
         } => {
             convert::convert_files(
                 &input,
@@ -202,7 +224,7 @@ fn main() {
                 recursive,
                 force,
                 channels,
-                None,
+                normalize_level,
             );
         }
         Commands::Info {
@@ -244,14 +266,29 @@ fn main() {
             min_freq,
             max_freq,
             recursive,
+            start,
+            end,
+            auto_start,
+            threshold,
+            detection_window,
+            min_duration,
             annotations,
         } => {
+            let time_range = time::create_time_range(start, end);
+            let auto_start_config = detection::create_auto_start_config(
+                auto_start,
+                threshold,
+                detection_window,
+                min_duration,
+            );
             spectrum::create_spectrograms(
                 &input,
                 window_size,
                 overlap,
                 min_freq,
                 max_freq,
+                time_range,
+                auto_start_config,
                 recursive,
                 annotations,
             );

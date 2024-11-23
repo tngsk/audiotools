@@ -1,3 +1,4 @@
+use crate::utils::detection::detect_peak_level;
 use crate::utils::get_walker;
 use std::fs;
 use std::path::PathBuf;
@@ -103,9 +104,25 @@ pub fn convert_files(
                     cmd.arg("-n");
                 }
 
-                // normalize_level が Some の場合、単純なボリューム調整として扱う
-                if let Some(gain) = normalize_level {
-                    cmd.args(&["-af", &format!("volume={}dB", gain)]);
+                // ノーマライズ処理の改善
+                if let Some(target_level) = normalize_level {
+                    match detect_peak_level(&entry.path().to_path_buf()) {
+                        Ok(current_peak) => {
+                            let gain = target_level - current_peak;
+                            println!(
+                                                "Current peak: {:.1} dBFS, Target: {:.1} dBFS, Applying gain: {:.1} dB",
+                                                current_peak, target_level, gain
+                                            );
+                            cmd.args(&["-af", &format!("volume={}dB", gain)]);
+                        }
+                        Err(e) => {
+                            println!(
+                                                "Warning: Could not detect peak level for {}: {}. Skipping normalization.",
+                                                entry.path().display(),
+                                                e
+                                            );
+                        }
+                    }
                 }
 
                 // モノラルステレオ変換

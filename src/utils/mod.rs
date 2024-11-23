@@ -1,4 +1,8 @@
+pub mod detection;
 pub mod ffprobe;
+pub mod time;
+pub mod wave_header;
+
 use crate::AUDIO_EXTENSIONS;
 
 use std::path::PathBuf;

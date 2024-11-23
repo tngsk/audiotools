@@ -1,5 +1,5 @@
-use crate::audio::wav::WavHeader;
 use crate::utils::ffprobe::run_ffprobe;
+use crate::utils::wave_header::WavHeader;
 use crate::utils::{format_size, get_walker, is_audio_file};
 use std::fs::{self, File};
 use std::io::Write;
