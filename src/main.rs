@@ -99,7 +99,7 @@ enum Commands {
         recursive: bool,
     },
 
-    /// Normalize audio files to target loudness level
+    /// Normalize audio files to target peak level
     Normalize {
         /// Input directory or file path
         #[arg(short, long)]
