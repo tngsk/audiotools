@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use audiotools::command::{
     convert, info, loudness, normalize,
     spectrum::{self, parse_frequency_annotation},
+    waveform::{self, parse_time_annotation, WaveformScale},
 };
 
 use audiotools::utils::detection;
@@ -189,6 +190,51 @@ enum Commands {
         #[arg(long = "annotate", value_parser = parse_frequency_annotation, value_delimiter = ',')]
         annotations: Option<Vec<(f32, String)>>,
     },
+    Waveform {
+        /// Input audio file
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Process directories recursively
+        #[arg(short, long)]
+        recursive: bool,
+
+        /// Display scale (amplitude or decibel)
+        #[arg(long, value_enum, default_value = "amplitude")]
+        scale: WaveformScale,
+
+        /// Start time (seconds, MM:SS format, or percentage with %)
+        #[arg(long, value_parser = time::parse_time_specification)]
+        start: Option<TimeSpecification>,
+
+        /// End time (seconds, MM:SS format, or percentage with %)
+        #[arg(long, value_parser = time::parse_time_specification)]
+        end: Option<TimeSpecification>,
+
+        /// Enable automatic start detection
+        #[arg(long)]
+        auto_start: bool,
+
+        /// Amplitude threshold for auto start detection
+        #[arg(long, default_value = "0.01")]
+        threshold: f32,
+
+        /// Window size for auto start detection
+        #[arg(long, default_value = "512")]
+        detection_window: usize,
+
+        /// Minimum duration for auto start detection (seconds)
+        #[arg(long, default_value = "0.01")]
+        min_duration: f32,
+
+        /// Time annotations (format: "time:label", comma-separated)
+        #[arg(long = "annotate", value_parser = parse_time_annotation, value_delimiter = ',')]
+        annotations: Option<Vec<(f32, String)>>,
+
+        /// Show RMS envelope
+        #[arg(long)]
+        show_rms: bool,
+    },
 }
 
 // Main function: Parse CLI arguments and dispatch to appropriate handler
@@ -291,6 +337,36 @@ fn main() {
                 auto_start_config,
                 recursive,
                 annotations,
+            );
+        }
+        Commands::Waveform {
+            input,
+            recursive,
+            scale,
+            start,
+            end,
+            auto_start,
+            threshold,
+            detection_window,
+            min_duration,
+            annotations,
+            show_rms,
+        } => {
+            let time_range = time::create_time_range(start, end);
+            let auto_start_config = detection::create_auto_start_config(
+                auto_start,
+                threshold,
+                detection_window,
+                min_duration,
+            );
+            waveform::create_waveforms(
+                &input,
+                scale,
+                time_range,
+                auto_start_config,
+                recursive,
+                annotations,
+                show_rms,
             );
         }
     }
