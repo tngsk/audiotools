@@ -1,20 +1,26 @@
 # AudioTools
 
-AudioTools is a command-line utility for audio file processing, providing functionality for format conversion, metadata extraction, and loudness analysis.
+AudioTools is a command-line utility for audio file processing and visualization, designed to assist audio engineers and producers in their workflow.
 
 ## Features
 
+### Core Features
+- Waveform visualization with amplitude/dB scale
 - Audio format conversion with customizable parameters
-- Audio file information extraction
-- EBU R128 loudness measurement
-- Spectrogram generation from WAV files
+- Audio level normalization and peak analysis
+- Spectrogram generation with frequency annotations
+- Auto start/silence detection
+- Time range selection for analysis
 - Recursive directory processing
-- Output file generation for analysis results
-- JSON formatting utility for analysis results
+
+### Additional Features
+- Audio file metadata extraction
+- EBU R128 loudness measurement
+- Analysis results export
 
 ## Project Scope
 
-This tool was developed to address specific personal audio processing tasks and workflows, rather than serving as a general-purpose audio processing solution. While others may find it useful, the feature set and implementation are primarily focused on meeting particular requirements for audio post-production and mastering workflows.
+This tool was developed to address specific audio visualization and processing needs in music production and sound design workflows. The feature set focuses on practical tools for audio analysis and batch processing, rather than serving as a comprehensive audio workstation.
 
 ## Prerequisites
 
@@ -36,25 +42,55 @@ cargo build --release
 
 ## Usage
 
-### Audio Conversion
+### Audio Conversion and Normalization
 
-Convert audio files with various options:
+Convert and normalize audio files:
 
 ```bash
-# Convert to WAV (24-bit) with custom output directory
-audiotools convert -i input_dir -o output_dir -I wav,flac,mp3 -O wav -b 24 -r
+# Convert to 24-bit WAV with normalization
+audiotools convert -i input_dir -O wav -b 24 --level -1.0
 
-# Convert to FLAC with flattened output structure
-audiotools convert -i input_dir -o output_dir -f -I wav -O flac -s 48000 -r
+# Normalize levels while preserving format
+audiotools normalize -i input_dir --level -1.0
 
-# Convert to MP3 preserving directory structure
-audiotools convert -i input_dir -o output_dir -I wav,flac -O mp3 --prefix "processed_" --postfix "_320k" -r
-
-# Convert and overwrite existing files
-audiotools convert -i input_dir -o output_dir -I wav,flac -O mp3 --force
+# Convert to mono/stereo
+audiotools convert -i input.wav --channels 1
 ```
 
 The `-o, --output-dir` option specifies the destination directory for converted files. By default, the tool preserves the source directory structure and skips existing files. Use the `-f, --flatten` flag to output all files directly to the specified output directory, and `--force` to overwrite existing files.
+
+### Waveform Visualization
+
+Generate detailed waveform visualizations with options:
+
+```bash
+# Basic waveform display
+audiotools waveform -i input.wav
+
+# Waveform with dB scale and RMS envelope
+audiotools waveform -i input.wav --scale decibel --show-rms
+
+# Add time annotations
+audiotools waveform -i input.wav --annotate "1.5:start,4.2:end"
+
+# Process with auto start detection
+audiotools waveform -i input.wav --auto-start --threshold 0.01
+```
+
+### Spectrogram Analysis
+
+Generate spectrograms with customizable parameters:
+
+```bash
+# Basic spectrogram
+audiotools spectrum -i input.wav
+
+# Detailed frequency analysis
+audiotools spectrum -i input.wav --window-size 4096 --overlap 0.85
+
+# Add frequency annotations
+audiotools spectrum -i input.wav --annotate "440:A4,880:A5"
+```
 
 ### Audio Information
 
@@ -78,21 +114,6 @@ audiotools loudness -i input_dir -r
 
 # Save to file
 audiotools loudness -i input_dir -o loudness.txt -r
-```
-
-### Spectrogram Generation
-
-Generate spectrograms from WAV files:
-
-```bash
-# Generate basic spectrogram
-audiotools spectrum -i input.wav
-
-# Generate spectrogram with custom parameters
-audiotools spectrum -i input_dir -w 2048 -v 0.75 --min-freq 20 --max-freq 20000 -r
-
-# Process multiple files recursively
-audiotools spectrum -i input_dir -r
 ```
 
 ### JSON Formatting
@@ -123,51 +144,38 @@ Input/Output formats:
 
 ## Command Line Options
 
-### Convert Command
-- `-i, --input`: Input directory or file path
-- `-o, --output-dir`: Output directory path
-- `-f, --flatten`: Flatten output directory structure (ignore source directory hierarchy)
-- `-I, --input-format`: Input formats to process (comma-separated)
-- `-O, --output-format`: Target output format
-- `-b, --bit-depth`: Output bit depth for WAV files
-- `-s, --sample-rate`: Target sample rate
-- `--prefix`: Prefix for output filenames
-- `--postfix`: Postfix for output filenames
-- `-r, --recursive`: Process directories recursively
-- `--force`: Force overwrite of existing files (default: skip existing files)
+### Convert/Normalize Commands
+- `-i, --input`: Input path
+- `-o, --output-dir`: Output directory
+- `--level`: Target normalization level (dBFS)
+- `--channels`: Output channel count (1=mono, 2=stereo)
+- `-b, --bit-depth`: Bit depth for WAV output
+- `--force`: Overwrite existing files
 
-### Info Command
-- `-i, --input`: Input directory or file path
-- `-o, --output`: Output file path
-- `-f, --fields`: Fields to display (comma-separated)
-- `-r, --recursive`: Process directories recursively
-
-### Loudness Command
-- `-i, --input`: Input directory or file path
-- `-o, --output`: Output file path
-- `-r, --recursive`: Process directories recursively
+### Waveform Command
+- `-i, --input`: Input audio file
+- `--scale`: Display scale (amplitude/decibel)
+- `--show-rms`: Show RMS envelope
+- `--start/--end`: Time range selection
+- `--auto-start`: Enable automatic start detection
+- `--annotate`: Time-based annotations (format: "time:label")
 
 ### Spectrum Command
-- `-i, --input`: Input WAV file or directory path
-- `-w, --window-size`: FFT window size (default: 2048)
-- `-v, --overlap`: Window overlap ratio (default: 0.75)
-- `--min-freq`: Minimum frequency to display in Hz (default: 20)
-- `--max-freq`: Maximum frequency to display in Hz (default: 20000)
-- `-r, --recursive`: Process directories recursively
-- `--annotate`: Frequency annotations in format "freq:label" (comma-separated)
-
+- `-i, --input`: Input audio file
+- `--window-size`: FFT window size
+- `--overlap`: Window overlap ratio
+- `--min/max-freq`: Frequency range
+- `--annotate`: Frequency annotations
 
 ## Dependencies
 
 ```toml
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
-walkdir = "2.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 hound = "3.5"
 plotters = "0.3"
 rustfft = "6.1"
+walkdir = "2.3"
 ```
 
 ## Note
@@ -175,10 +183,9 @@ rustfft = "6.1"
 This tool requires FFmpeg to be installed on your system. Please ensure FFmpeg is properly installed and available in your system PATH before using AudioTools.
 
 To install FFmpeg:
-
-- **Ubuntu/Debian**: `sudo apt-get install ffmpeg`
-- **macOS**: `brew install ffmpeg`
-- **Windows**: Download from [FFmpeg official website](https://ffmpeg.org/download.html)
+- Ubuntu/Debian: `sudo apt-get install ffmpeg`
+- macOS: `brew install ffmpeg`
+- Windows: Download from [FFmpeg official website](https://ffmpeg.org/download.html)
 
 ## License
 
@@ -187,6 +194,7 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
 
 ## Acknowledgments
 
