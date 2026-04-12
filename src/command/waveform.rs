@@ -296,8 +296,7 @@ fn calculate_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
         };
         let end = (i + window_size / 2).min(samples.len());
 
-        let sum_squares: f32 = samples[start..end].iter().map(|&x| x * x).sum();
-        let rms = (sum_squares / (end - start) as f32).sqrt();
+        let rms = crate::utils::math::calculate_rms(&samples[start..end]);
         rms_values.push(rms);
     }
     rms_values
