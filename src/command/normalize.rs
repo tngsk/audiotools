@@ -45,7 +45,8 @@ pub fn normalize_files(
                             false,
                             force,
                             None,
-                            Some(level),
+                            None,
+                            Some(gain),
                         );
                     }
                     Err(e) => {
