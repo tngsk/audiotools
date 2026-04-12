@@ -6,8 +6,16 @@ use std::process::Command;
 
 // Measure audio loudness according to EBU R128 standard
 pub fn measure_loudness(input: &PathBuf, output: Option<&PathBuf>, recursive: bool) {
-    let mut output_file =
-        output.map(|path| File::create(path).expect("Failed to create output file"));
+    let mut output_file = match output {
+        Some(path) => match File::create(path) {
+            Ok(file) => Some(file),
+            Err(e) => {
+                eprintln!("Error: Failed to create output file {}: {}", path.display(), e);
+                return;
+            }
+        },
+        None => None,
+    };
 
     for entry in get_walker(input, recursive) {
         if let Some(ext) = entry.path().extension() {
@@ -56,8 +64,9 @@ pub fn measure_loudness(input: &PathBuf, output: Option<&PathBuf>, recursive: bo
                         );
 
                         if let Some(file) = &mut output_file {
-                            writeln!(file, "{}", formatted_output)
-                                .expect("Failed to write to output file");
+                            if let Err(e) = writeln!(file, "{}", formatted_output) {
+                                eprintln!("Error: Failed to write to output file: {}", e);
+                            }
                         } else {
                             println!("{}", formatted_output);
                         }
@@ -69,8 +78,9 @@ pub fn measure_loudness(input: &PathBuf, output: Option<&PathBuf>, recursive: bo
                             e
                         );
                         if let Some(file) = &mut output_file {
-                            writeln!(file, "{}", error_msg)
-                                .expect("Failed to write to output file");
+                            if let Err(e) = writeln!(file, "{}", error_msg) {
+                                eprintln!("Error: Failed to write to output file: {}", e);
+                            }
                         } else {
                             eprintln!("{}", error_msg);
                         }
