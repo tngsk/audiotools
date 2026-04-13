@@ -326,3 +326,35 @@ fn amplitude_to_db(amplitude: f32) -> f32 {
         (20.0 * amplitude.abs().log10()).max(-60.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_time_annotation_valid() {
+        let result = parse_time_annotation("1.5:start");
+        assert_eq!(result, Ok((1.5, "start".to_string())));
+
+        let result = parse_time_annotation("0:zero");
+        assert_eq!(result, Ok((0.0, "zero".to_string())));
+
+        let result = parse_time_annotation("-1.2:negative");
+        assert_eq!(result, Ok((-1.2, "negative".to_string())));
+    }
+
+    #[test]
+    fn test_parse_time_annotation_invalid_format() {
+        let result = parse_time_annotation("invalid");
+        assert_eq!(result, Err("Annotation format should be 'time:label'".to_string()));
+
+        let result = parse_time_annotation("1.5:start:end");
+        assert_eq!(result, Err("Annotation format should be 'time:label'".to_string()));
+    }
+
+    #[test]
+    fn test_parse_time_annotation_invalid_time() {
+        let result = parse_time_annotation("not_a_number:start");
+        assert_eq!(result, Err("Invalid time value".to_string()));
+    }
+}
