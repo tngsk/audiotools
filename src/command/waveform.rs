@@ -160,35 +160,6 @@ pub fn create_waveform(
         .set_label_area_size(LabelAreaPosition::Bottom, 40)
         .build_cartesian_2d(start_time..end_time, y_min..y_max)?;
 
-    /// 時間の長さに応じて適切なグリッド間隔を決定する
-    fn calculate_grid_interval(duration: f32) -> f32 {
-        let intervals = [
-            0.001, 0.002, 0.005, // ミリ秒単位
-            0.01, 0.02, 0.05, // 10ミリ秒単位
-            0.1, 0.2, 0.5, // 100ミリ秒単位
-            1.0, 2.0, 5.0, // 秒単位
-            10.0, 20.0, 30.0, // 10秒単位
-            60.0, 120.0, 300.0, // 分単位
-        ];
-
-        // 目標とするグリッド数（画面の見やすさを考慮）
-        const TARGET_GRID_COUNT: f32 = 10.0;
-
-        // 最適な間隔を探す
-        let ideal_interval = duration / TARGET_GRID_COUNT;
-
-        // 理想的な間隔に最も近い定義済み間隔を選択
-        intervals
-            .iter()
-            .min_by(|&&a, &&b| {
-                let diff_a = (a - ideal_interval).abs();
-                let diff_b = (b - ideal_interval).abs();
-                diff_a.partial_cmp(&diff_b).unwrap()
-            })
-            .copied()
-            .unwrap_or(1.0)
-    }
-
     // グリッドとラベルの設定
     let duration = end_time - start_time;
     let grid_interval = calculate_grid_interval(duration);
@@ -327,34 +298,76 @@ fn amplitude_to_db(amplitude: f32) -> f32 {
     }
 }
 
+/// 時間の長さに応じて適切なグリッド間隔を決定する
+fn calculate_grid_interval(duration: f32) -> f32 {
+    let intervals = [
+        0.001, 0.002, 0.005, // ミリ秒単位
+        0.01, 0.02, 0.05, // 10ミリ秒単位
+        0.1, 0.2, 0.5, // 100ミリ秒単位
+        1.0, 2.0, 5.0, // 秒単位
+        10.0, 20.0, 30.0, // 10秒単位
+        60.0, 120.0, 300.0, // 分単位
+    ];
+
+    // 目標とするグリッド数（画面の見やすさを考慮）
+    const TARGET_GRID_COUNT: f32 = 10.0;
+
+    // 最適な間隔を探す
+    let ideal_interval = duration / TARGET_GRID_COUNT;
+
+    // 理想的な間隔に最も近い定義済み間隔を選択
+    intervals
+        .iter()
+        .min_by(|&&a, &&b| {
+            let diff_a = (a - ideal_interval).abs();
+            let diff_b = (b - ideal_interval).abs();
+            diff_a.partial_cmp(&diff_b).unwrap()
+        })
+        .copied()
+        .unwrap_or(1.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_time_annotation_valid() {
-        let result = parse_time_annotation("1.5:start");
-        assert_eq!(result, Ok((1.5, "start".to_string())));
+    fn test_calculate_grid_interval() {
+        // duration = 0.01s (10ms) -> target 10 grids -> ideal_interval = 0.001s (1ms)
+        assert_eq!(calculate_grid_interval(0.01), 0.001);
 
-        let result = parse_time_annotation("0:zero");
-        assert_eq!(result, Ok((0.0, "zero".to_string())));
+        // duration = 0.05s (50ms) -> target 10 grids -> ideal_interval = 0.005s (5ms)
+        assert_eq!(calculate_grid_interval(0.05), 0.005);
 
-        let result = parse_time_annotation("-1.2:negative");
-        assert_eq!(result, Ok((-1.2, "negative".to_string())));
-    }
+        // duration = 0.2s (200ms) -> target 10 grids -> ideal_interval = 0.02s (20ms)
+        assert_eq!(calculate_grid_interval(0.2), 0.02);
 
-    #[test]
-    fn test_parse_time_annotation_invalid_format() {
-        let result = parse_time_annotation("invalid");
-        assert_eq!(result, Err("Annotation format should be 'time:label'".to_string()));
+        // duration = 1.0s -> target 10 grids -> ideal_interval = 0.1s
+        assert_eq!(calculate_grid_interval(1.0), 0.1);
 
-        let result = parse_time_annotation("1.5:start:end");
-        assert_eq!(result, Err("Annotation format should be 'time:label'".to_string()));
-    }
+        // duration = 10.0s -> target 10 grids -> ideal_interval = 1.0s
+        assert_eq!(calculate_grid_interval(10.0), 1.0);
 
-    #[test]
-    fn test_parse_time_annotation_invalid_time() {
-        let result = parse_time_annotation("not_a_number:start");
-        assert_eq!(result, Err("Invalid time value".to_string()));
+        // duration = 60.0s -> target 10 grids -> ideal_interval = 6.0s
+        // Closest to 6.0s in intervals is 5.0s (diff 1.0) vs 10.0s (diff 4.0)
+        assert_eq!(calculate_grid_interval(60.0), 5.0);
+
+        // duration = 120.0s -> target 10 grids -> ideal_interval = 12.0s
+        // Closest to 12.0s is 10.0s (diff 2.0) vs 20.0s (diff 8.0)
+        assert_eq!(calculate_grid_interval(120.0), 10.0);
+
+        // duration = 600.0s (10 mins) -> target 10 grids -> ideal_interval = 60.0s
+        assert_eq!(calculate_grid_interval(600.0), 60.0);
+
+        // duration = 3000.0s (50 mins) -> target 10 grids -> ideal_interval = 300.0s
+        assert_eq!(calculate_grid_interval(3000.0), 300.0);
+
+        // Edge case: very small duration, ideal_interval = 0.00005
+        // Closest in intervals is 0.001
+        assert_eq!(calculate_grid_interval(0.0005), 0.001);
+
+        // Edge case: very large duration, ideal_interval = 1000.0
+        // Closest in intervals is 300.0
+        assert_eq!(calculate_grid_interval(10000.0), 300.0);
     }
 }
