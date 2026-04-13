@@ -326,3 +326,77 @@ fn amplitude_to_db(amplitude: f32) -> f32 {
         (20.0 * amplitude.abs().log10()).max(-60.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_rms_empty() {
+        let samples: Vec<f32> = vec![];
+        let result = calculate_rms(&samples, 10);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_calculate_rms_zeros() {
+        let samples = vec![0.0, 0.0, 0.0, 0.0, 0.0];
+        let result = calculate_rms(&samples, 2);
+        assert_eq!(result.len(), 5);
+        for &val in &result {
+            assert_eq!(val, 0.0);
+        }
+    }
+
+    #[test]
+    fn test_calculate_rms_constant() {
+        let samples = vec![2.0, 2.0, 2.0, 2.0, 2.0];
+        let result = calculate_rms(&samples, 2);
+        assert_eq!(result.len(), 5);
+        for &val in &result {
+            assert!((val - 2.0).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_calculate_rms_alternating() {
+        let samples = vec![1.0, -1.0, 1.0, -1.0];
+        let result = calculate_rms(&samples, 3);
+        assert_eq!(result.len(), 4);
+        for &val in &result {
+            assert!((val - 1.0).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_calculate_rms_window_larger_than_samples() {
+        let samples = vec![1.0, 2.0, 3.0];
+        // window_size 10, half_window 5
+        let result = calculate_rms(&samples, 10);
+        assert_eq!(result.len(), 3);
+        let expected_rms = (14.0f64 / 3.0f64).sqrt() as f32;
+        for &val in &result {
+            assert!((val - expected_rms).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_calculate_rms_exact_values() {
+        let samples = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        // window_size = 2 -> half_window = 1
+        let result = calculate_rms(&samples, 2);
+
+        let expected = vec![
+            1.0,
+            (2.5f64).sqrt() as f32,
+            (6.5f64).sqrt() as f32,
+            (12.5f64).sqrt() as f32,
+            (20.5f64).sqrt() as f32
+        ];
+
+        assert_eq!(result.len(), expected.len());
+        for (i, (&val, &exp)) in result.iter().zip(expected.iter()).enumerate() {
+            assert!((val - exp).abs() < 1e-5, "Mismatch at index {}: got {}, expected {}", i, val, exp);
+        }
+    }
+}
