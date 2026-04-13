@@ -42,14 +42,14 @@ impl AutoStartDetection {
             .map(|&x| (x as f64) * (x as f64))
             .sum();
 
-        let window_size_f64 = self.window_size as f64;
         let threshold_sq = (self.threshold as f64) * (self.threshold as f64);
 
         for i in 0..samples.len().saturating_sub(self.window_size) {
             let window = &samples[i..i + self.window_size];
             let rms = crate::utils::math::calculate_rms(window);
+            let mean_squares = (rms as f64) * (rms as f64);
 
-            if !triggered && mean_squares > threshold_sq {
+            if !triggered && sum_squares / window_size_f64 > threshold_sq {
                 triggered = true;
                 potential_start = i;
             } else if triggered {
@@ -209,11 +209,32 @@ mod tests {
 
     #[test]
     fn test_is_zero_crossing() {
+        // Basic crossing tests
         assert!(AutoStartDetection::is_zero_crossing(0.1, -0.1));
         assert!(AutoStartDetection::is_zero_crossing(-0.1, 0.1));
+
+        // Zero crossing to exactly 0.0
         assert!(AutoStartDetection::is_zero_crossing(-0.1, 0.0));
         assert!(AutoStartDetection::is_zero_crossing(0.0, -0.1));
+
+        // No crossing
         assert!(!AutoStartDetection::is_zero_crossing(0.1, 0.1));
         assert!(!AutoStartDetection::is_zero_crossing(-0.1, -0.1));
+        assert!(!AutoStartDetection::is_zero_crossing(0.0, 0.0));
+        assert!(!AutoStartDetection::is_zero_crossing(0.0, 0.1));
+
+        // -0.0 edge cases
+        // -0.0 behaves like 0.0 in comparison operations (e.g. -0.0 == 0.0, -0.0 >= 0.0 is true)
+        assert!(!AutoStartDetection::is_zero_crossing(-0.0, 0.1));
+        assert!(AutoStartDetection::is_zero_crossing(-0.0, -0.1));
+
+        // Large values
+        assert!(AutoStartDetection::is_zero_crossing(100.0, -100.0));
+        assert!(AutoStartDetection::is_zero_crossing(-100.0, 100.0));
+
+        // Subnormal values
+        let subnormal = f32::from_bits(1);
+        assert!(AutoStartDetection::is_zero_crossing(subnormal, -subnormal));
+        assert!(AutoStartDetection::is_zero_crossing(-subnormal, subnormal));
     }
 }

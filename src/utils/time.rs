@@ -88,3 +88,68 @@ pub fn parse_time_specification(time_str: &str) -> Result<TimeSpecification, Str
         Ok(TimeSpecification::Seconds(seconds))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_time_range_both_none() {
+        let result = create_time_range(None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_create_time_range_start_only() {
+        let result = create_time_range(Some(TimeSpecification::Seconds(5.0)), None);
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 5.0),
+                _ => panic!("Expected Seconds"),
+            }
+            match range.end {
+                TimeSpecification::Percentage(p) => assert_eq!(p, 1.0),
+                _ => panic!("Expected Percentage"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_create_time_range_end_only() {
+        let result = create_time_range(None, Some(TimeSpecification::Percentage(0.5)));
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 0.0),
+                _ => panic!("Expected Seconds"),
+            }
+            match range.end {
+                TimeSpecification::Percentage(p) => assert_eq!(p, 0.5),
+                _ => panic!("Expected Percentage"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_create_time_range_both_some() {
+        let result = create_time_range(
+            Some(TimeSpecification::MinutesSeconds(1, 30)),
+            Some(TimeSpecification::Seconds(120.0)),
+        );
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::MinutesSeconds(m, s) => {
+                    assert_eq!(m, 1);
+                    assert_eq!(s, 30);
+                }
+                _ => panic!("Expected MinutesSeconds"),
+            }
+            match range.end {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 120.0),
+                _ => panic!("Expected Seconds"),
+            }
+        }
+    }
+}
