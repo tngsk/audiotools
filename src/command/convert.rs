@@ -170,12 +170,22 @@ pub fn convert_files(
                 cmd.args(&["-acodec", codec]).arg(&output);
 
                 // 変換実行
-                cmd.output().expect("Failed to execute ffmpeg");
-                println!(
-                    "Converted: {} -> {}",
-                    entry.path().display(),
-                    output.display()
-                );
+                match cmd.output() {
+                    Ok(output_res) => {
+                        if output_res.status.success() {
+                            println!(
+                                "Converted: {} -> {}",
+                                entry.path().display(),
+                                output.display()
+                            );
+                        } else {
+                            eprintln!("Failed to convert: {}", entry.path().display());
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to execute ffmpeg for {}: {}", entry.path().display(), e);
+                    }
+                }
             }
         }
     }
