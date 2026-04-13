@@ -25,6 +25,7 @@ pub fn convert_files(
     force: bool,
     channels: Option<u8>,
     normalize_level: Option<f32>,
+    gain: Option<f32>,
 ) {
     // Determine codec and extension based on output format
     let (codec, out_ext) = match output_format.to_lowercase().as_str() {
@@ -114,15 +115,17 @@ pub fn convert_files(
                 }
 
                 // ノーマライズ処理の改善
-                if let Some(target_level) = normalize_level {
+                if let Some(gain_val) = gain {
+                    cmd.args(&["-af", &format!("volume={}dB", gain_val)]);
+                } else if let Some(target_level) = normalize_level {
                     match detect_peak_level(&entry.path().to_path_buf()) {
                         Ok(current_peak) => {
-                            let gain = target_level - current_peak;
+                            let calc_gain = target_level - current_peak;
                             println!(
                                                 "Current peak: {:.1} dBFS, Target: {:.1} dBFS, Applying gain: {:.1} dB",
-                                                current_peak, target_level, gain
+                                                current_peak, target_level, calc_gain
                                             );
-                            cmd.args(&["-af", &format!("volume={}dB", gain)]);
+                            cmd.args(&["-af", &format!("volume={}dB", calc_gain)]);
                         }
                         Err(e) => {
                             println!(

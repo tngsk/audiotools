@@ -271,6 +271,7 @@ fn main() {
                 force,
                 channels,
                 normalize_level,
+                None,
             );
         }
         Commands::Info {
