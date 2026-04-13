@@ -65,7 +65,9 @@ pub fn measure_loudness(input: &PathBuf, output: Option<&PathBuf>, recursive: bo
 
                         if let Some(file) = &mut output_file {
                             if let Err(e) = writeln!(file, "{}", formatted_output) {
+
                                 eprintln!("Error: Failed to write to output file: {}", e);
+
                             }
                         } else {
                             println!("{}", formatted_output);
