@@ -94,57 +94,62 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_create_time_range_both_some() {
-        let start = Some(TimeSpecification::Seconds(10.0));
-        let end = Some(TimeSpecification::Seconds(20.0));
-        let range = create_time_range(start, end);
-        assert!(range.is_some());
-        let range = range.unwrap();
-        match range.start {
-            TimeSpecification::Seconds(s) => assert_eq!(s, 10.0),
-            _ => panic!("Expected Seconds"),
-        }
-        match range.end {
-            TimeSpecification::Seconds(s) => assert_eq!(s, 20.0),
-            _ => panic!("Expected Seconds"),
-        }
+    fn test_create_time_range_both_none() {
+        let result = create_time_range(None, None);
+        assert!(result.is_none());
     }
 
     #[test]
     fn test_create_time_range_start_only() {
-        let start = Some(TimeSpecification::Seconds(10.0));
-        let range = create_time_range(start, None);
-        assert!(range.is_some());
-        let range = range.unwrap();
-        match range.start {
-            TimeSpecification::Seconds(s) => assert_eq!(s, 10.0),
-            _ => panic!("Expected Seconds"),
-        }
-        match range.end {
-            TimeSpecification::Percentage(p) => assert_eq!(p, 1.0),
-            _ => panic!("Expected Percentage"),
+        let result = create_time_range(Some(TimeSpecification::Seconds(5.0)), None);
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 5.0),
+                _ => panic!("Expected Seconds"),
+            }
+            match range.end {
+                TimeSpecification::Percentage(p) => assert_eq!(p, 1.0),
+                _ => panic!("Expected Percentage"),
+            }
         }
     }
 
     #[test]
     fn test_create_time_range_end_only() {
-        let end = Some(TimeSpecification::Seconds(20.0));
-        let range = create_time_range(None, end);
-        assert!(range.is_some());
-        let range = range.unwrap();
-        match range.start {
-            TimeSpecification::Seconds(s) => assert_eq!(s, 0.0),
-            _ => panic!("Expected Seconds"),
-        }
-        match range.end {
-            TimeSpecification::Seconds(s) => assert_eq!(s, 20.0),
-            _ => panic!("Expected Seconds"),
+        let result = create_time_range(None, Some(TimeSpecification::Percentage(0.5)));
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 0.0),
+                _ => panic!("Expected Seconds"),
+            }
+            match range.end {
+                TimeSpecification::Percentage(p) => assert_eq!(p, 0.5),
+                _ => panic!("Expected Percentage"),
+            }
         }
     }
 
     #[test]
-    fn test_create_time_range_both_none() {
-        let range = create_time_range(None, None);
-        assert!(range.is_none());
+    fn test_create_time_range_both_some() {
+        let result = create_time_range(
+            Some(TimeSpecification::MinutesSeconds(1, 30)),
+            Some(TimeSpecification::Seconds(120.0)),
+        );
+        assert!(result.is_some());
+        if let Some(range) = result {
+            match range.start {
+                TimeSpecification::MinutesSeconds(m, s) => {
+                    assert_eq!(m, 1);
+                    assert_eq!(s, 30);
+                }
+                _ => panic!("Expected MinutesSeconds"),
+            }
+            match range.end {
+                TimeSpecification::Seconds(s) => assert_eq!(s, 120.0),
+                _ => panic!("Expected Seconds"),
+            }
+        }
     }
 }
