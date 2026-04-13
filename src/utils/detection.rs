@@ -43,12 +43,9 @@ impl AutoStartDetection {
             .sum();
 
         let threshold_sq = (self.threshold as f64) * (self.threshold as f64);
+        let window_size_f64 = self.window_size as f64;
 
         for i in 0..samples.len().saturating_sub(self.window_size) {
-            let window = &samples[i..i + self.window_size];
-            let rms = crate::utils::math::calculate_rms(window);
-            let mean_squares = (rms as f64) * (rms as f64);
-
             if !triggered && sum_squares / window_size_f64 > threshold_sq {
                 triggered = true;
                 potential_start = i;
