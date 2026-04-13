@@ -1,5 +1,6 @@
 pub mod detection;
 pub mod ffprobe;
+pub mod math;
 pub mod time;
 pub mod wave_header;
 

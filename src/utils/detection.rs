@@ -22,12 +22,6 @@ impl Default for AutoStartDetection {
 }
 
 impl AutoStartDetection {
-    // RMSエネルギーを計算する関数
-    fn calculate_rms(window: &[f32]) -> f32 {
-        let sum_squares: f32 = window.iter().map(|&x| x * x).sum();
-        (sum_squares / window.len() as f32).sqrt()
-    }
-
     // ゼロクロッシングを検出する関数
     fn is_zero_crossing(a: f32, b: f32) -> bool {
         (a < 0.0 && b >= 0.0) || (a >= 0.0 && b < 0.0)
@@ -52,8 +46,8 @@ impl AutoStartDetection {
         let threshold_sq = (self.threshold as f64) * (self.threshold as f64);
 
         for i in 0..samples.len().saturating_sub(self.window_size) {
-            // Compare current window mean squares (RMS squared) with threshold
-            let mean_squares = sum_squares / window_size_f64;
+            let window = &samples[i..i + self.window_size];
+            let rms = crate::utils::math::calculate_rms(window);
 
             if !triggered && mean_squares > threshold_sq {
                 triggered = true;

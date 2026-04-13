@@ -147,12 +147,18 @@ pub fn create_spectrogram(
     // スペクトログラム計算
     let mut spectrogram = Vec::new();
     let mut i = 0;
+
+    // Allocate buffer once
+    let mut buffer = vec![Complex::new(0.0, 0.0); window_size];
+
     while i + window_size <= samples.len() {
-        let mut buffer: Vec<Complex<f32>> = samples[i..i + window_size]
-            .iter()
-            .zip(window.iter())
-            .map(|(&s, &w)| Complex::new(s * w, 0.0))
-            .collect();
+        // Mutate buffer in-place using iterators to elide bounds checks
+        for (b, (&s, &w)) in buffer
+            .iter_mut()
+            .zip(samples[i..i + window_size].iter().zip(window.iter()))
+        {
+            *b = Complex::new(s * w, 0.0);
+        }
 
         fft.process(&mut buffer);
 
