@@ -181,25 +181,23 @@ pub fn convert_files(
 
                 // 変換実行
                 match cmd.output() {
-                    Ok(output) => {
-                        if !output.status.success() {
-                            eprintln!(
-                                "Error converting {}: FFmpeg exited with error",
-                                entry.path().display()
+
+                    Ok(output_res) => {
+                        if output_res.status.success() {
+                            println!(
+                                "Converted: {} -> {}",
+                                entry.path().display(),
+                                output.display()
                             );
-                            continue;
+                        } else {
+                            eprintln!("Failed to convert: {}", entry.path().display());
                         }
                     }
                     Err(e) => {
                         eprintln!("Failed to execute ffmpeg for {}: {}", entry.path().display(), e);
-                        continue;
+
                     }
                 }
-                println!(
-                    "Converted: {} -> {}",
-                    entry.path().display(),
-                    output.display()
-                );
             }
         }
     }
