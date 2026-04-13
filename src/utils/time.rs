@@ -88,3 +88,63 @@ pub fn parse_time_specification(time_str: &str) -> Result<TimeSpecification, Str
         Ok(TimeSpecification::Seconds(seconds))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_time_range_both_some() {
+        let start = Some(TimeSpecification::Seconds(10.0));
+        let end = Some(TimeSpecification::Seconds(20.0));
+        let range = create_time_range(start, end);
+        assert!(range.is_some());
+        let range = range.unwrap();
+        match range.start {
+            TimeSpecification::Seconds(s) => assert_eq!(s, 10.0),
+            _ => panic!("Expected Seconds"),
+        }
+        match range.end {
+            TimeSpecification::Seconds(s) => assert_eq!(s, 20.0),
+            _ => panic!("Expected Seconds"),
+        }
+    }
+
+    #[test]
+    fn test_create_time_range_start_only() {
+        let start = Some(TimeSpecification::Seconds(10.0));
+        let range = create_time_range(start, None);
+        assert!(range.is_some());
+        let range = range.unwrap();
+        match range.start {
+            TimeSpecification::Seconds(s) => assert_eq!(s, 10.0),
+            _ => panic!("Expected Seconds"),
+        }
+        match range.end {
+            TimeSpecification::Percentage(p) => assert_eq!(p, 1.0),
+            _ => panic!("Expected Percentage"),
+        }
+    }
+
+    #[test]
+    fn test_create_time_range_end_only() {
+        let end = Some(TimeSpecification::Seconds(20.0));
+        let range = create_time_range(None, end);
+        assert!(range.is_some());
+        let range = range.unwrap();
+        match range.start {
+            TimeSpecification::Seconds(s) => assert_eq!(s, 0.0),
+            _ => panic!("Expected Seconds"),
+        }
+        match range.end {
+            TimeSpecification::Seconds(s) => assert_eq!(s, 20.0),
+            _ => panic!("Expected Seconds"),
+        }
+    }
+
+    #[test]
+    fn test_create_time_range_both_none() {
+        let range = create_time_range(None, None);
+        assert!(range.is_none());
+    }
+}
