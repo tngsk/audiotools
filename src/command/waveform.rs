@@ -288,16 +288,32 @@ pub fn create_waveform(
 
 fn calculate_rms(samples: &[f32], window_size: usize) -> Vec<f32> {
     let mut rms_values = Vec::with_capacity(samples.len());
-    for i in 0..samples.len() {
-        let start = if i < window_size / 2 {
-            0
-        } else {
-            i - window_size / 2
-        };
-        let end = (i + window_size / 2).min(samples.len());
+    if samples.is_empty() {
+        return rms_values;
+    }
 
-        let sum_squares: f32 = samples[start..end].iter().map(|&x| x * x).sum();
-        let rms = (sum_squares / (end - start) as f32).sqrt();
+    let half_window = window_size / 2;
+    let mut current_sum: f64 = 0.0;
+
+    let mut start = 0;
+    let mut end = 0;
+
+    for i in 0..samples.len() {
+        let next_start = i.saturating_sub(half_window);
+        let next_end = (i + half_window).min(samples.len());
+
+        while end < next_end {
+            let val = samples[end] as f64;
+            current_sum += val * val;
+            end += 1;
+        }
+        while start < next_start {
+            let val = samples[start] as f64;
+            current_sum -= val * val;
+            start += 1;
+        }
+
+        let rms = (current_sum.max(0.0) / (end - start) as f64).sqrt() as f32;
         rms_values.push(rms);
     }
     rms_values
