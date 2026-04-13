@@ -42,3 +42,36 @@ pub fn format_size(bytes: u64) -> String {
 pub fn is_audio_file(ext: &str) -> bool {
     AUDIO_EXTENSIONS.contains(&ext.to_lowercase().as_str())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_size_zero_bytes() {
+        assert_eq!(format_size(0), "0 B");
+    }
+
+    #[test]
+    fn test_format_size_typical_values() {
+        assert_eq!(format_size(1), "1.00 B (1 bytes)");
+        assert_eq!(format_size(1023), "1023.00 B (1023 bytes)");
+    }
+
+    #[test]
+    fn test_format_size_powers_of_1024() {
+        assert_eq!(format_size(1024), "1.00 KB (1024 bytes)");
+        assert_eq!(format_size(1024 * 1024), "1.00 MB (1048576 bytes)");
+        assert_eq!(format_size(1024 * 1024 * 1024), "1.00 GB (1073741824 bytes)");
+        assert_eq!(format_size(1024_u64 * 1024 * 1024 * 1024), "1.00 TB (1099511627776 bytes)");
+        assert_eq!(format_size(1024_u64 * 1024 * 1024 * 1024 * 1024), "1.00 PB (1125899906842624 bytes)");
+    }
+
+    #[test]
+    fn test_format_size_max_u64() {
+        // u64::MAX is approximately 16 EB (exabytes).
+        // Since the UNITS array only goes up to PB (index 5), it gracefully falls back to bytes.
+        let max_u64 = u64::MAX;
+        assert_eq!(format_size(max_u64), format!("{} B", max_u64));
+    }
+}
