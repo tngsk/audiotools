@@ -50,7 +50,7 @@ impl AutoStartDetection {
             let rms = crate::utils::math::calculate_rms(window);
             let mean_squares = (rms as f64) * (rms as f64);
 
-            if !triggered && mean_squares > threshold_sq {
+            if !triggered && sum_squares / window_size_f64 > threshold_sq {
                 triggered = true;
                 potential_start = i;
             } else if triggered {
