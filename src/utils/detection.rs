@@ -28,15 +28,28 @@ impl AutoStartDetection {
     }
 
     pub fn detect_start_time(&self, samples: &[f32], sample_rate: f32) -> Option<f32> {
+        if samples.len() < self.window_size {
+            return None;
+        }
+
         let min_samples = (self.min_duration * sample_rate) as usize;
         let mut triggered = false;
         let mut potential_start = 0;
+
+        // Calculate initial window sum of squares
+        let mut sum_squares: f64 = samples[..self.window_size]
+            .iter()
+            .map(|&x| (x as f64) * (x as f64))
+            .sum();
+
+        let window_size_f64 = self.window_size as f64;
+        let threshold_sq = (self.threshold as f64) * (self.threshold as f64);
 
         for i in 0..samples.len().saturating_sub(self.window_size) {
             let window = &samples[i..i + self.window_size];
             let rms = crate::utils::math::calculate_rms(window);
 
-            if !triggered && rms > self.threshold {
+            if !triggered && mean_squares > threshold_sq {
                 triggered = true;
                 potential_start = i;
             } else if triggered {
@@ -49,6 +62,18 @@ impl AutoStartDetection {
                         }
                     }
                     return Some(potential_start as f32 / sample_rate);
+                }
+            }
+
+            // Update sliding window
+            if i + self.window_size < samples.len() {
+                let out_sample = samples[i] as f64;
+                let in_sample = samples[i + self.window_size] as f64;
+                sum_squares -= out_sample * out_sample;
+                sum_squares += in_sample * in_sample;
+                // Avoid cumulative floating point errors
+                if sum_squares < 0.0 {
+                    sum_squares = 0.0;
                 }
             }
         }
@@ -116,4 +141,79 @@ pub fn detect_peak_level(input: &PathBuf) -> Result<f32, Box<dyn std::error::Err
     // ピーク値をdBFSに変換
     let peak_dbfs = 20.0 * max_peak.max(1e-20).log10();
     Ok(peak_dbfs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detect_start_time_triggers() {
+        let detector = AutoStartDetection {
+            threshold: 0.1,
+            window_size: 10,
+            min_duration: 0.01,
+        };
+        let sample_rate = 1000.0; // 1 sample = 1ms
+        let mut samples = vec![0.0; 100];
+        // Trigger at index 50
+        for i in 50..60 {
+            samples[i] = 0.5;
+        }
+        // Zero crossing at 51 (0.5 to -0.5 is not possible here but let's make it cross)
+        samples[51] = -0.5;
+
+        let result = detector.detect_start_time(&samples, sample_rate);
+        assert!(result.is_some());
+        // Since min_duration is 10ms (10 samples), and it triggers at 50,
+        // it checks for zero crossings between 50 and 60.
+        // There is a zero crossing between 50 and 51.
+        assert_eq!(result.unwrap(), 50.0 / sample_rate);
+    }
+
+    #[test]
+    fn test_detect_start_time_no_trigger() {
+        let detector = AutoStartDetection {
+            threshold: 0.1,
+            window_size: 10,
+            min_duration: 0.01,
+        };
+        let sample_rate = 1000.0;
+        let samples = vec![0.05; 100];
+
+        let result = detector.detect_start_time(&samples, sample_rate);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_detect_start_time_trigger_at_end() {
+        let detector = AutoStartDetection {
+            threshold: 0.1,
+            window_size: 10,
+            min_duration: 0.01,
+        };
+        let sample_rate = 1000.0;
+        let mut samples = vec![0.0; 100];
+        for i in 90..100 {
+            samples[i] = 0.5;
+        }
+
+        let result = detector.detect_start_time(&samples, sample_rate);
+        // It might not trigger because the loop goes to samples.len() - window_size
+        // 100 - 10 = 90. Loop ends at 89.
+        // At 89, window is 89..99. 90..99 are 0.5. RMS will be > 0.1.
+        // i = 89, triggered = true, potential_start = 89.
+        // But then loop ends. triggered is true but min_duration not reached in loop.
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_is_zero_crossing() {
+        assert!(AutoStartDetection::is_zero_crossing(0.1, -0.1));
+        assert!(AutoStartDetection::is_zero_crossing(-0.1, 0.1));
+        assert!(AutoStartDetection::is_zero_crossing(-0.1, 0.0));
+        assert!(AutoStartDetection::is_zero_crossing(0.0, -0.1));
+        assert!(!AutoStartDetection::is_zero_crossing(0.1, 0.1));
+        assert!(!AutoStartDetection::is_zero_crossing(-0.1, -0.1));
+    }
 }
