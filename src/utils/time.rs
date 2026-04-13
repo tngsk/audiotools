@@ -1,11 +1,11 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TimeSpecification {
     Seconds(f32),             // 秒指定
     MinutesSeconds(u32, u32), // 分:秒指定
     Percentage(f32),          // パーセンテージ指定
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TimeRange {
     pub start: TimeSpecification,
     pub end: TimeSpecification,
@@ -86,5 +86,52 @@ pub fn parse_time_specification(time_str: &str) -> Result<TimeSpecification, Str
             return Err("Seconds must be positive".to_string());
         }
         Ok(TimeSpecification::Seconds(seconds))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_time_specification_percentage() {
+        // Valid percentages
+        assert!(matches!(parse_time_specification("0%"), Ok(TimeSpecification::Percentage(p)) if (p - 0.0).abs() < f32::EPSILON));
+        assert!(matches!(parse_time_specification("50%"), Ok(TimeSpecification::Percentage(p)) if (p - 0.5).abs() < f32::EPSILON));
+        assert!(matches!(parse_time_specification("100%"), Ok(TimeSpecification::Percentage(p)) if (p - 1.0).abs() < f32::EPSILON));
+
+        // Invalid percentages
+        assert_eq!(parse_time_specification("-10%"), Err("Percentage must be between 0 and 100".to_string()));
+        assert_eq!(parse_time_specification("101%"), Err("Percentage must be between 0 and 100".to_string()));
+        assert_eq!(parse_time_specification("abc%"), Err("Invalid percentage format".to_string()));
+    }
+
+    #[test]
+    fn test_parse_time_specification_minutes_seconds() {
+        // Valid minutes and seconds
+        assert!(matches!(parse_time_specification("0:00"), Ok(TimeSpecification::MinutesSeconds(0, 0))));
+        assert!(matches!(parse_time_specification("1:30"), Ok(TimeSpecification::MinutesSeconds(1, 30))));
+        assert!(matches!(parse_time_specification("59:59"), Ok(TimeSpecification::MinutesSeconds(59, 59))));
+
+        // Invalid minutes and seconds
+        assert_eq!(parse_time_specification("1:60"), Err("Seconds must be less than 60".to_string()));
+        assert_eq!(parse_time_specification("1:abc"), Err("Invalid seconds".to_string()));
+        assert_eq!(parse_time_specification("abc:30"), Err("Invalid minutes".to_string()));
+        assert_eq!(parse_time_specification("-1:30"), Err("Invalid minutes".to_string())); // Because it expects u32
+        assert_eq!(parse_time_specification("1:-30"), Err("Invalid seconds".to_string())); // Because it expects u32
+        assert_eq!(parse_time_specification("1:30:10"), Err("Invalid time format. Use MM:SS".to_string()));
+    }
+
+    #[test]
+    fn test_parse_time_specification_seconds() {
+        // Valid seconds
+        assert!(matches!(parse_time_specification("0"), Ok(TimeSpecification::Seconds(s)) if (s - 0.0).abs() < f32::EPSILON));
+        assert!(matches!(parse_time_specification("10.5"), Ok(TimeSpecification::Seconds(s)) if (s - 10.5).abs() < f32::EPSILON));
+        assert!(matches!(parse_time_specification("120"), Ok(TimeSpecification::Seconds(s)) if (s - 120.0).abs() < f32::EPSILON));
+
+        // Invalid seconds
+        assert_eq!(parse_time_specification("-10"), Err("Seconds must be positive".to_string()));
+        assert_eq!(parse_time_specification("-5.5"), Err("Seconds must be positive".to_string()));
+        assert_eq!(parse_time_specification("abc"), Err("Invalid seconds".to_string()));
     }
 }
