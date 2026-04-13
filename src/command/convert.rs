@@ -30,10 +30,11 @@ pub fn convert_files(
     let (codec, out_ext) = match output_format.to_lowercase().as_str() {
         "wav" => {
             if !SUPPORTED_BIT_DEPTHS.contains(&bit_depth) {
-                panic!(
+                eprintln!(
                     "Unsupported bit depth for WAV. Supported depths are: {:?}",
                     SUPPORTED_BIT_DEPTHS
                 );
+                return;
             }
             (
                 match bit_depth {
@@ -46,10 +47,13 @@ pub fn convert_files(
         }
         "flac" => ("flac", "flac"),
         "mp3" => ("libmp3lame", "mp3"),
-        format => panic!(
-            "Unsupported output format: {}. Supported formats are: {:?}",
-            format, SUPPORTED_FORMATS
-        ),
+        format => {
+            eprintln!(
+                "Unsupported output format: {}. Supported formats are: {:?}",
+                format, SUPPORTED_FORMATS
+            );
+            return;
+        }
     };
 
     // Convert input formats to lowercase for comparison
@@ -59,7 +63,10 @@ pub fn convert_files(
         if let Some(ext) = entry.path().extension() {
             let ext_str = ext.to_string_lossy().to_lowercase();
             if input_extensions.contains(&ext_str) {
-                let stem = entry.path().file_stem().unwrap().to_string_lossy();
+                let stem = match entry.path().file_stem() {
+                    Some(s) => s.to_string_lossy(),
+                    None => continue,
+                };
                 let filename = format!(
                     "{}{}{}.{}",
                     prefix.unwrap_or(""),
@@ -79,8 +86,10 @@ pub fn convert_files(
                             .parent()
                             .unwrap_or_else(|| std::path::Path::new(""));
                         let full_output_dir = out_dir.join(relative_path);
-                        fs::create_dir_all(&full_output_dir)
-                            .expect("Failed to create output directory");
+                        if let Err(e) = fs::create_dir_all(&full_output_dir) {
+                            eprintln!("Failed to create output directory {}: {}", full_output_dir.display(), e);
+                            continue;
+                        }
                         full_output_dir.join(&filename)
                     }
                 } else {
@@ -147,7 +156,8 @@ pub fn convert_files(
                             ]);
                         }
                         _ => {
-                            panic!("Unsupported number of channels. Use 1 for mono or 2 for stereo")
+                            eprintln!("Unsupported number of channels. Use 1 for mono or 2 for stereo");
+                            continue;
                         }
                     }
                 }
@@ -171,6 +181,7 @@ pub fn convert_files(
 
                 // 変換実行
                 match cmd.output() {
+
                     Ok(output_res) => {
                         if output_res.status.success() {
                             println!(
@@ -184,6 +195,7 @@ pub fn convert_files(
                     }
                     Err(e) => {
                         eprintln!("Failed to execute ffmpeg for {}: {}", entry.path().display(), e);
+
                     }
                 }
             }
