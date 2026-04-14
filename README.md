@@ -25,7 +25,7 @@ This tool was developed to address specific audio visualization and processing n
 ## Prerequisites
 
 - Rust (latest stable version)
-- FFmpeg (must be installed and accessible in system PATH)
+- C/C++ build tools (for compiling native dependencies like `alsa-sys` on Linux)
 
 ## Installation
 
@@ -133,14 +133,6 @@ fmtr -i loudness.txt -o loudness.json -t loudness
 Input/Output formats:
 - WAV (16/24-bit)
 - FLAC
-- MP3
-- AAC
-- M4A
-- OGG
-- WMA
-- AIFF
-- ALAC
-- OPUS
 
 ## Command Line Options
 
@@ -171,21 +163,16 @@ Input/Output formats:
 
 ```toml
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 hound = "3.5"
 plotters = "0.3"
-rustfft = "6.1"
-walkdir = "2.3"
+rustfft = "6.4"
+walkdir = "2.5"
+symphonia = "0.5"
+rubato = "2.0"
+ebur128 = "0.1"
+flacenc = "0.5"
 ```
-
-## Note
-
-This tool requires FFmpeg to be installed on your system. Please ensure FFmpeg is properly installed and available in your system PATH before using AudioTools.
-
-To install FFmpeg:
-- Ubuntu/Debian: `sudo apt-get install ffmpeg`
-- macOS: `brew install ffmpeg`
-- Windows: Download from [FFmpeg official website](https://ffmpeg.org/download.html)
 
 ## License
 
@@ -194,11 +181,3 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-
-## Acknowledgments
-
-This project heavily relies on FFmpeg, an amazing open-source multimedia framework. Special thanks to the FFmpeg team and contributors for providing such a powerful and reliable tool that makes this project possible.
-
-- FFmpeg: [https://ffmpeg.org/](https://ffmpeg.org/)
-- FFmpeg Repository: [https://github.com/FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg)
